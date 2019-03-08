@@ -1,0 +1,48 @@
+version: "3.1"
+
+services:
+  php:
+    build: .docker/php/
+    volumes:
+      - .:/var/www
+      - $SSH_AUTH_SOCK:/ssh-agent # use local ssh agent to take care of private key
+    environment:
+      SSH_AUTH_SOCK: /ssh-agent
+      XDEBUG_CONFIG: remote_host=host.docker.internal
+    working_dir: /var/www
+    secrets:
+      - host_ssh_key
+    networks:
+      - laravel-api
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www
+      - ./nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - laravel-api
+
+  mysql:
+    build: .docker/mysql/
+    ports:
+      - "33066:3306"
+    environment:
+      - MYSQL_DATABASE=laravel
+      - MYSQL_ALLOW_EMPTY_PASSWORD=yes
+    volumes:
+      - ./mysql:/var/lib/mysql
+    networks:
+      - laravel-api
+
+networks:
+  laravel-api:
+    driver: bridge
+
+secrets:
+  host_ssh_key:
+    file: ~/.ssh/id_rsa
